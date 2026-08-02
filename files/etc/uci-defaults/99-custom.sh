@@ -9,6 +9,10 @@ echo "Starting 99-custom.sh at $(date)" >>$LOGFILE
 # 具体操作方法：网络——防火墙 在wan的入站数据 下拉选项里选择 拒绝 保存并应用即可。
 uci set firewall.@zone[1].input='ACCEPT'
 
+# 强制 LuCI 默认语言为简体中文 (OpenWrt 官方默认英文, 不设置则首启显示英文)
+uci set luci.main.lang='zh_cn'
+uci commit luci
+
 # 设置主机名映射，解决安卓原生 TV 无法联网的问题
 uci add dhcp domain
 uci set "dhcp.@domain[-1].name=time.android.com"

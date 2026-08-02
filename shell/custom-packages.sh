@@ -3,6 +3,8 @@
 
 # 公共基础包
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES curl"
+# 核心框架翻译 (菜单及系统/网络/状态等基础页面); imagebuilder 的 PACKAGES 会覆盖 .config, 必须显式列出
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-base-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-firewall-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-argon"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-argon-config"
