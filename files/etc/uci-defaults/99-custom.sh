@@ -166,6 +166,9 @@ uci -q delete uhttpd.main.listen_https
 uci add_list uhttpd.main.listen_https='0.0.0.0:8443'
 uci add_list uhttpd.main.listen_https='[::]:8443'
 uci commit uhttpd
+# nginx-mod-luci 的 60_nginx-luci-support 会 disable+stop uhttpd, 这里重新启用以保留备用入口
+/etc/init.d/uhttpd enable
+/etc/init.d/uhttpd restart
 echo "uhttpd moved to 8080/8443 (backup); nginx primary on 80/443" >>$LOGFILE
 
 # 若安装了dockerd 则设置docker的防火墙规则
