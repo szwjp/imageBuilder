@@ -156,24 +156,17 @@ if [ -f /usr/lib/lua/luci/controller/advancedplus.lua ]; then
     echo "fix ttyd show msg: /usb/bin/zsh: not found" >>$LOGFILE
 fi
 
-# 只有安装了 luci-app-quickfile 才执行
-if [ -f /usr/bin/quickfile ]; then
-    uci set nginx.global.uci_enable='true'
-    uci del nginx._lan 2>/dev/null
-    uci del nginx._redirect2ssl 2>/dev/null
-
-    uci add nginx server
-    uci rename nginx.@server[-1]='_lan'
-
-    uci set nginx._lan.server_name='_lan'
-    uci add_list nginx._lan.listen='80 default_server'
-    uci add_list nginx._lan.listen='[::]:80 default_server'
-    uci add_list nginx._lan.include='conf.d/*.locations'
-    uci set nginx._lan.access_log='off; # logd openwrt'
-
-    uci commit nginx
-    echo "fix quickfile nginx config" >>$LOGFILE
-fi
+# nginx 为主 Web 服务器 (80/443, 自签 HTTPS, 经 uwsgi 跑 LuCI), 由 nginx-full + nginx-mod-luci 提供
+# nginx 默认 include conf.d/*.locations, quickfile 等插件无需专项配置即可被服务
+# uhttpd 降级为备用入口, 移至 8080(http)/8443(https) 以让出 80/443 给 nginx
+uci -q delete uhttpd.main.listen_http
+uci add_list uhttpd.main.listen_http='0.0.0.0:8080'
+uci add_list uhttpd.main.listen_http='[::]:8080'
+uci -q delete uhttpd.main.listen_https
+uci add_list uhttpd.main.listen_https='0.0.0.0:8443'
+uci add_list uhttpd.main.listen_https='[::]:8443'
+uci commit uhttpd
+echo "uhttpd moved to 8080/8443 (backup); nginx primary on 80/443" >>$LOGFILE
 
 # 若安装了dockerd 则设置docker的防火墙规则
 # 扩大docker涵盖的子网范围 '172.16.0.0/12'
