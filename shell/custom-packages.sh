@@ -1,28 +1,23 @@
 #!/bin/bash
 # 自定义软件包配置 (ImmortalWrt 25.12.x, APK)
+# 主 Web 服务器: nginx 经 uwsgi 跑 LuCI, 自签 HTTPS 监听 80/443; uhttpd 降级为 8080/8443 备用
+# nginx-full 自带 nginx-ssl-util(自签证书), nginx-mod-luci 自动拉入 uwsgi 并接线 LuCI
 
 # 公共基础包
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES curl"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-diskman-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-firewall-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES openssh-sftp-server"
-
-# 主 Web 服务器: nginx 经 uwsgi 跑 LuCI, 自签 HTTPS 监听 80/443; uhttpd 降级为 8080/8443 备用
-# nginx-full 自带 nginx-ssl-util(自签证书), nginx-mod-luci 自动拉入 uwsgi 并接线 LuCI
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES nginx-full nginx-mod-luci"
-
-# 25.12 版本特定包
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-package-manager-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-filemanager-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-argon"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-argon-config"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-argon-config-zh-cn"
 
-# ============= imm 25.12.x仓库外的第三方插件apk ==========
-# ============= 若启用，取消注释即可 ========================
-
+# ============= imm 25.12.x仓库外的第三方插件apk，靠wukong-luci更新 ==========
 # 新增非常好用的文件管理器 by github sbwml
-#CUSTOM_PACKAGES="$CUSTOM_PACKAGES bash quickfile luci-app-quickfile luci-i18n-quickfile-zh-cn"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES bash quickfile luci-app-quickfile luci-i18n-quickfile-zh-cn"
 # 极光主题和配置 by github eamonxg
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-aurora luci-app-aurora-config luci-i18n-aurora-config-zh-cn"
 # 分区扩容 by sirpdboy
