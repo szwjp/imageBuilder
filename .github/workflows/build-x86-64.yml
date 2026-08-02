@@ -1,0 +1,223 @@
+name: Build ImmortalWrt x86-64
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "ImmortalWrt 主版本"
+        required: true
+        default: "24"
+        type: choice
+        options:
+          - '23'
+          - '24'
+          - '25'
+      luci_version:
+        description: "完整版本号 (须与主版本匹配)"
+        required: true
+        default: "24.10.6"
+        type: choice
+        options:
+          - 23.05.7
+          - 24.10.0
+          - 24.10.1
+          - 24.10.2
+          - 24.10.3
+          - 24.10.4
+          - 24.10.5
+          - 24.10.6
+          - 25.12.0
+          - 25.12.1
+      output_format:
+        description: "输出格式"
+        required: true
+        default: "img"
+        type: choice
+        options:
+          - img
+          - iso
+      custom_router_ip:
+        description: "路由器管理地址 (仅多网口有效) 格式:192.168.x.1 或 10.x.x.1"
+        required: true
+        default: "192.168.1.1"
+      profile:
+        description: '固件大小 单位(MB)'
+        required: true
+        default: '1024'
+      enable_store:
+        description: "集成 iStore 商店 (仅 23/24 有效)"
+        required: false
+        type: boolean
+        default: true
+      include_docker:
+        description: "是否编译 Docker 插件"
+        required: true
+        default: 'yes'
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+      enable_pppoe:
+        description: "是否配置PPPoE拨号信息?"
+        required: true
+        default: 'no'
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+      pppoe_account:
+        description: "宽带账号 (若启用PPPoE)"
+        required: false
+      pppoe_password:
+        description: "宽带密码 (若启用PPPoE)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set executable permissions
+        run: chmod +x ${{ github.workspace }}/x86-64/build.sh
+
+      - name: Validate inputs
+        run: |
+          version="${{ inputs.version }}"
+          luci_version="${{ inputs.luci_version }}"
+          case "$version" in
+            23) expected_prefix="23." ;;
+            24) expected_prefix="24." ;;
+            25) expected_prefix="25." ;;
+          esac
+          if [[ "$luci_version" != ${expected_prefix}* ]]; then
+            echo "::error::主版本 $version 与完整版本号 $luci_version 不匹配！"
+            exit 1
+          fi
+          if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
+            if [[ -z "${{ inputs.pppoe_account }}" || -z "${{ inputs.pppoe_password }}" ]]; then
+              echo "Error: PPPoE account and password must be provided when PPPoE is enabled!"
+              exit 1
+            fi
+          fi
+
+      - name: Save Custom Router IP
+        run: |
+          mkdir -p "${{ github.workspace }}/custom"
+          echo "${{ inputs.custom_router_ip }}" > "${{ github.workspace }}/custom/custom_router_ip.txt"
+
+      - name: Build ImmortalWrt firmware
+        run: |
+          version="${{ inputs.version }}"
+          luci_version="${{ inputs.luci_version }}"
+          profile="${{ inputs.profile }}"
+          include_docker="${{ inputs.include_docker }}"
+
+          image_tag="$luci_version"
+
+          if [ "$version" = "25" ]; then
+            config_file="imm25.config"
+          else
+            config_file="imm.config"
+          fi
+
+          IFS=',' read -r -a profile_array <<< "$profile"
+
+          for p in "${profile_array[@]}"; do
+            echo "Building for profile: $p (version=$version, image_tag=$image_tag)"
+            docker run --rm -i \
+              --user root \
+              -v "${{ github.workspace }}/bin:/home/build/immortalwrt/bin" \
+              -v "${{ github.workspace }}/files:/home/build/immortalwrt/files" \
+              -v "${{ github.workspace }}/custom:/home/build/immortalwrt/files/etc/config" \
+              -v "${{ github.workspace }}/x86-64/${config_file}:/home/build/immortalwrt/.config" \
+              -v "${{ github.workspace }}/shell:/home/build/immortalwrt/shell" \
+              -v "${{ github.workspace }}/x86-64/build.sh:/home/build/immortalwrt/build.sh" \
+              -e IMM_VERSION=$version \
+              -e PROFILE=$p \
+              -e INCLUDE_DOCKER=$include_docker \
+              -e ENABLE_STORE=${{ inputs.enable_store }} \
+              -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
+              -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
+              -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
+              immortalwrt/imagebuilder:x86-64-openwrt-${image_tag} /bin/bash /home/build/immortalwrt/build.sh
+          done
+
+      - name: Create info
+        run: |
+          cat > ${{ github.workspace }}/router-info.md <<EOF
+          ## 📡 路由器后台信息
+          <a href="https://wkdaily.cpolar.cn/archives/1">
+           <img src="https://img.shields.io/badge/若下载慢可套用国内加速站下载-FC7C0D?logo=github&logoColor=fff&labelColor=000&style=for-the-badge"/>
+          </a>
+
+          - 🏠 **后台地址**: ${{ inputs.custom_router_ip }}
+          - 👤 **用户名**: root
+          - 🔑 **密码**: 无
+          EOF
+
+          if [ "${{ inputs.include_docker }}" == "yes" ]; then
+            echo -e "\n#### 默认带docker" >> ${{ github.workspace }}/router-info.md
+          else
+            echo -e "\n#### 不带docker" >> ${{ github.workspace }}/router-info.md
+          fi
+
+      - name: Upload firmware as release (img)
+        if: inputs.output_format == 'img'
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          tag_name: Autobuild-x86-64
+          body_path: ${{ github.workspace }}/router-info.md
+          files: |
+            ${{ github.workspace }}/bin/targets/x86/64/*squashfs-combined-efi.img.gz
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy firmware for ISO
+        if: inputs.output_format == 'iso'
+        run: cp ${{ github.workspace }}/bin/targets/x86/64/*squashfs-combined-efi.img.gz ${{ github.workspace }}/
+
+      - name: Upload firmware artifact (for ISO)
+        if: inputs.output_format == 'iso'
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-img
+          path: "*.img.gz"
+
+  build_iso:
+    runs-on: ubuntu-22.04
+    needs: build
+    if: inputs.output_format == 'iso'
+
+    steps:
+      - name: Download firmware artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-img
+
+      - name: Clone img-installer
+        run: git clone https://github.com/wukongdaily/img-installer.git
+
+      - name: Set executable permissions
+        run: |
+          chmod +x "${{ github.workspace }}/img-installer/custom.sh"
+          chmod +x "${{ github.workspace }}/img-installer/supportFiles/custom/build.sh"
+
+      - name: Build ISO
+        run: |
+          firmware_file=$(ls *squashfs-combined-efi.img.gz)
+          cd img-installer
+          bash autobuild/autobuild.sh "../$firmware_file"
+
+      - name: Upload ISO to Release
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          tag_name: "Custom-Installer-x86_64-ISO"
+          body_path: "${{ github.workspace }}/img-installer/autobuild/info.md"
+          files: |
+            img-installer/output/custom-installer-x86_64.iso
+          token: "${{ secrets.GITHUB_TOKEN }}"
