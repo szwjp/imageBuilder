@@ -177,6 +177,8 @@ uci -q delete nginx._redirect2ssl.return
 uci add_list nginx._redirect2ssl.include='restrict_locally'
 uci add_list nginx._redirect2ssl.include='conf.d/*.locations'
 uci commit nginx
+# 60_nginx-luci-support 已先启动 nginx(用默认跳转配置), 重启使其加载上面的 80 直连配置
+/etc/init.d/nginx restart
 
 # 若安装了dockerd 则设置docker的防火墙规则
 # 扩大docker涵盖的子网范围 '172.16.0.0/12'
