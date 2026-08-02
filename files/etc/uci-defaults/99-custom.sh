@@ -171,6 +171,13 @@ uci commit uhttpd
 /etc/init.d/uhttpd restart
 echo "uhttpd moved to 8080/8443 (backup); nginx primary on 80/443" >>$LOGFILE
 
+# 80 与 443 均直接提供 LuCI: 把默认只做 80→443 跳转的 _redirect2ssl 改为直接服务 conf.d 内容
+# 不修改 _lan (其 uci_manage_ssl 由 nginx-util 管理), 避免改动被重置
+uci -q delete nginx._redirect2ssl.return
+uci add_list nginx._redirect2ssl.include='restrict_locally'
+uci add_list nginx._redirect2ssl.include='conf.d/*.locations'
+uci commit nginx
+
 # 若安装了dockerd 则设置docker的防火墙规则
 # 扩大docker涵盖的子网范围 '172.16.0.0/12'
 # 方便各类docker容器的端口顺利通过防火墙
