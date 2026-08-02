@@ -1,23 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# IMM_VERSION: 23 / 24 / 25 (由 workflow 通过环境变量传入)
-: "${IMM_VERSION:?请设置 IMM_VERSION 环境变量 (23/24/25)}"
-
-case "$IMM_VERSION" in
-  23) PKG_FORMAT="ipk"; STORE_REPO="https://github.com/wukongdaily/store.git" ;;
-  24) PKG_FORMAT="ipk"; STORE_REPO="https://github.com/wukongdaily/store.git" ;;
-  25) PKG_FORMAT="apk"; STORE_REPO="https://github.com/wukongdaily/apk.git" ;;
-  *)  echo "不支持的版本: $IMM_VERSION"; exit 1 ;;
-esac
+# 仅支持 ImmortalWrt 25.12.x (apk 包格式)
+STORE_REPO="https://github.com/wukongdaily/apk.git"
 
 CUSTOM_PACKAGES=""
-source "shell/custom-packages-${IMM_VERSION}.sh"
-
-if [ "$IMM_VERSION" != "25" ] && [ "${ENABLE_STORE:-false}" = "true" ]; then
-  CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-store"
-  echo "✅ 已追加 luci-app-store"
-fi
+source "shell/custom-packages.sh"
 
 echo "第三方软件包: $CUSTOM_PACKAGES"
 echo "编译固件大小为: $PROFILE MB"
@@ -47,11 +35,7 @@ else
   echo "✅ Run files copied to extra-packages:"
   ls -lh /home/build/immortalwrt/extra-packages/*.run || true
 
-  if [ "$PKG_FORMAT" = "apk" ]; then
-    sh shell/apk-prepare-packages.sh
-  else
-    sh shell/prepare-packages.sh
-  fi
+  sh shell/prepare-packages.sh
   ls -lah /home/build/immortalwrt/packages/
 fi
 
@@ -71,19 +55,17 @@ if echo "$PACKAGES" | grep -q "luci-app-openclash"; then
     chmod +x files/etc/openclash/core/clash_meta
     wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat -O files/etc/openclash/GeoIP.dat
     wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat -O files/etc/openclash/GeoSite.dat
-    if [ "$IMM_VERSION" != "23" ]; then
-        URL=$(curl -s https://api.github.com/repos/vernesong/OpenClash/releases/latest \
-          | grep "browser_download_url.*${PKG_FORMAT}" \
-          | head -n1 \
-          | cut -d '"' -f 4)
-        echo "OpenClash latest ${PKG_FORMAT}: $URL"
-        wget "$URL" -P /home/build/immortalwrt/packages/
-    fi
+    URL=$(curl -s https://api.github.com/repos/vernesong/OpenClash/releases/latest \
+      | grep "browser_download_url.*apk" \
+      | head -n1 \
+      | cut -d '"' -f 4)
+    echo "OpenClash latest apk: $URL"
+    wget "$URL" -P /home/build/immortalwrt/packages/
 else
     echo "⚪️ 未选择 luci-app-openclash"
 fi
 
-if [ "$IMM_VERSION" != "23" ] && echo "$PACKAGES" | grep -q "luci-app-ssr-plus"; then
+if echo "$PACKAGES" | grep -q "luci-app-ssr-plus"; then
     echo "✅ 已选择 luci-app-ssr-plus，添加 mihomo core"
     mkdir -p files/usr/bin
     MIHOMO_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest \
