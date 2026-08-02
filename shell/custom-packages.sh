@@ -10,7 +10,6 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-argon"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-argon-config"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-argon-config-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES openssh-sftp-server"
-# 25.12 版本特定包
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-package-manager-zh-cn"
 
 # 主 Web 服务器: nginx 经 uwsgi 跑 LuCI, 自签 HTTPS 监听 80/443; uhttpd 降级为 8080/8443 备用
@@ -118,7 +117,7 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-adblock-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-mwan3-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-n2n-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-natmap-zh-cn"
-#CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-netdata-zh-cn"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-netdata-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-nextdns-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-nfs-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-nft-qos-zh-cn"
