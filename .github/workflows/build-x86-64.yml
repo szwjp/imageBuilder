@@ -113,7 +113,8 @@ jobs:
           cat > ${{ github.workspace }}/router-info.md <<EOF
           ## 📡 路由器后台信息
 
-          - 🏠 **后台地址**: ${{ inputs.custom_router_ip }}
+          - 🏠 **后台地址**: https://${{ inputs.custom_router_ip }} (nginx 主入口, 自签证书)
+          - 🔗 **备用入口**: http://${{ inputs.custom_router_ip }}:8080 (uhttpd)
           - 👤 **用户名**: root
           - 🔑 **密码**: 无
           - 📦 **版本**: OpenWrt ${{ inputs.openwrt_version }}
