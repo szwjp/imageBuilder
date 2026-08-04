@@ -15,7 +15,8 @@
 ```
 ImmortalWrt-ImageBuilder/
 ├── .github/workflows/          # GitHub Actions 工作流目录
-│   ├── build-x86-64.yml            # 构建工作流 (通过参数选择版本号和输出格式)
+│   ├── build-immortalwrt.yml       # ImmortalWrt 构建工作流 (通过参数选择版本号和输出格式)
+│   ├── build-openwrt.yml           # OpenWrt 构建工作流 (基于 openwrt 分支)
 │   └── clean-workflow.yml          # 工作流清理
 ├── x86-64/                      # x86-64 平台配置目录
 │   ├── build.sh                 # 构建脚本
@@ -26,6 +27,8 @@ ImmortalWrt-ImageBuilder/
 └── files/etc/uci-defaults/      # 固件自定义文件目录
     └── 99-custom.sh             # 固件首次启动配置脚本
 ```
+
+> 注：OpenWrt 构建工作流（build-openwrt.yml）基于独立的 `openwrt` 分支，该分支含 openwrt 专用配置（`x86-64/openwrt.config`、`shell/apk-prepare-packages.sh`）。
 
 ## 操作手册
 
