@@ -13,7 +13,7 @@
 ImmortalWrt-ImageBuilder/
 ├── .github/workflows/          # GitHub Actions 工作流目录
 │   ├── build-immortalwrt.yml       # ImmortalWrt 构建工作流 (通过参数选择版本号和输出格式)
-│   ├── build-openwrt.yml           # OpenWrt 构建工作流
+│   ├── build-openwrt.yml           # OpenWrt 构建工作流 (基于 openwrt 分支)
 │   └── clean-workflow.yml          # 工作流清理
 ├── x86-64/                      # x86-64 平台配置目录
 │   ├── build.sh                 # 构建脚本
