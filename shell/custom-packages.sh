@@ -7,7 +7,7 @@
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES curl"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES openssh-sftp-server"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES nginx-full nginx-mod-luci"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr"
 
 # ============= 25.12.x仓库外的第三方apk ==========
 # 文件管理
