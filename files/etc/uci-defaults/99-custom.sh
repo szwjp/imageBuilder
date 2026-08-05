@@ -87,7 +87,8 @@ elif [ "$count" -gt 1 ]; then
     uci set network.wan6.proto='dhcpv6'
 
     # 查找 br-lan 设备 section
-    section=$(uci show network | awk -F '[.=]' '/\.@?device\[\d+\]\.name=.br-lan.$/ {print $2; exit}')
+    # busybox awk 不支持 \d, 用 POSIX [0-9]
+    section=$(uci show network | awk -F '[.=]' '/\.@?device\[[0-9]+\]\.name=.br-lan.$/ {print $2; exit}')
     if [ -z "$section" ]; then
         echo "error: cannot find device 'br-lan', LAN ports not configured" >>$LOGFILE
     else
@@ -233,5 +234,8 @@ EOF
 else
     echo "未检测到 Docker，跳过防火墙配置。"
 fi
+
+# PPPoE 凭据已写入 network 配置, 删除明文源文件避免残留
+rm -f "$SETTINGS_FILE"
 
 exit 0

@@ -7,7 +7,7 @@ CUSTOM_PACKAGES=""
 source "${WORK_DIR}/shell/custom-packages.sh"
 
 echo "软件包: $CUSTOM_PACKAGES"
-echo "编译固件大小为: $PROFILE MB"
+echo "编译固件大小为: $ROOTFS_PARTSIZE MB"
 echo "Include Docker: $INCLUDE_DOCKER"
 
 echo "Create pppoe-settings"
@@ -19,8 +19,8 @@ pppoe_account=${PPPOE_ACCOUNT}
 pppoe_password=${PPPOE_PASSWORD}
 EOF
 
-echo "cat pppoe-settings"
-cat "${WORK_DIR}/files/etc/config/pppoe-settings"
+echo "pppoe-settings 内容 (密码已隐藏):"
+grep -v '^pppoe_password' "${WORK_DIR}/files/etc/config/pppoe-settings"
 
 if [ -z "$CUSTOM_PACKAGES" ]; then
   echo "⚪️ 未选择任何第三方软件包"
@@ -29,10 +29,13 @@ else
   git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
 
   mkdir -p "${WORK_DIR}/extra-packages"
-  cp -r /tmp/store-apk-repo/run/x86/* "${WORK_DIR}/extra-packages/"
-
-  echo "✅ Run files copied to extra-packages:"
-  ls -lh "${WORK_DIR}/extra-packages/"*.run || true
+  if [ -d /tmp/store-apk-repo/run/x86 ]; then
+    cp -r /tmp/store-apk-repo/run/x86/* "${WORK_DIR}/extra-packages/"
+    echo "✅ Run files copied to extra-packages:"
+    ls -lh "${WORK_DIR}/extra-packages/"*.run || true
+  else
+    echo "⚠️ 上游仓库缺少 run/x86 目录, 跳过第三方包"
+  fi
 
   (cd "${WORK_DIR}" && sh shell/apk-prepare-packages.sh)
   ls -lah "${WORK_DIR}/packages/"
@@ -46,7 +49,7 @@ if [ "$INCLUDE_DOCKER" = "yes" ]; then
     echo "Adding package: luci-i18n-dockerman-zh-cn"
 fi
 
-if echo "$PACKAGES" | grep -q "luci-app-openclash"; then
+if echo "$PACKAGES" | grep -Eq '(^| )luci-app-openclash( |$)'; then
     echo "✅ 已选择 luci-app-openclash，添加 openclash core"
     mkdir -p "${WORK_DIR}/files/etc/openclash/core"
     META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-amd64-v1.tar.gz"
@@ -64,7 +67,7 @@ else
     echo "⚪️ 未选择 luci-app-openclash"
 fi
 
-if echo "$PACKAGES" | grep -q "luci-app-ssr-plus"; then
+if echo "$PACKAGES" | grep -Eq '(^| )luci-app-ssr-plus( |$)'; then
     echo "✅ 已选择 luci-app-ssr-plus，添加 mihomo core"
     mkdir -p "${WORK_DIR}/files/usr/bin"
     MIHOMO_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest \
@@ -84,6 +87,6 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with the following packages:"
 echo "$PACKAGES"
 
-make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="${WORK_DIR}/files" ROOTFS_PARTSIZE="$PROFILE"
+make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="${WORK_DIR}/files" ROOTFS_PARTSIZE="$ROOTFS_PARTSIZE"
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."

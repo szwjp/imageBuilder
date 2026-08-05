@@ -18,9 +18,9 @@ done
 # 1. 收集 run 解压出的 .apk 文件
 find "$TEMP_DIR" -type f -name "*.apk" -exec cp -v {} "$TARGET_DIR"/ \;
 
-# 2. 收集 extra-packages/*/ 下的 .apk 文件（只查一级子目录）
+# 2. 收集 extra-packages/*/ 下的 .apk 文件（只查一级子目录, maxdepth 2 天然排除 temp-unpack 深度3）
 
-find "$BASE_DIR" -mindepth 2 -maxdepth 2 -type f -name "*.apk" ! -path "$TEMP_DIR/*" \
+find "$BASE_DIR" -mindepth 2 -maxdepth 2 -type f -name "*.apk" \
   -exec echo "👉 Found:" {} \; \
   -exec cp -v {} "$TARGET_DIR"/ \;
 
