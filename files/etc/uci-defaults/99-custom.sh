@@ -153,12 +153,12 @@ if [ -f "$FILE_PATH" ]; then
     sed -i "s/DISTRIB_DESCRIPTION='[^']*'/DISTRIB_DESCRIPTION='$NEW_DESCRIPTION'/" "$FILE_PATH"
 fi
 
-# 若luci-app-advancedplus (进阶设置)已安装 则去除zsh的调用 防止命令行报 /usb/bin/zsh: not found的提示
+# 若luci-app-advancedplus (进阶设置)已安装 则去除zsh的调用 防止命令行报 /usr/bin/zsh: not found的提示
 if [ -f /usr/lib/lua/luci/controller/advancedplus.lua ]; then
     sed -i '/\/usr\/bin\/zsh/d' /etc/profile
     sed -i '/\/bin\/zsh/d' /etc/init.d/advancedplus
     sed -i '/\/usr\/bin\/zsh/d' /etc/init.d/advancedplus
-    echo "fix ttyd show msg: /usb/bin/zsh: not found" >>$LOGFILE
+    echo "fix ttyd show msg: /usr/bin/zsh: not found" >>$LOGFILE
 fi
 
 # nginx 为主 Web 服务器 (80/443, 自签 HTTPS, 经 uwsgi 跑 LuCI), 由 nginx-full + nginx-mod-luci 提供
