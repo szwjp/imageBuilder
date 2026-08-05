@@ -72,11 +72,17 @@ jobs:
 
       - name: Validate PPPoE Inputs
         run: |
+          if ! [[ "${{ inputs.profile }}" =~ ^[0-9]+$ ]]; then
+            echo "Error: profile 必须是数字 (MB)，不支持逗号分隔多尺寸"
+            exit 1
+          fi
           if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
             if [[ -z "${{ inputs.pppoe_account }}" || -z "${{ inputs.pppoe_password }}" ]]; then
               echo "Error: PPPoE account and password must be provided when PPPoE is enabled!"
               exit 1
             fi
+            # 将密码加入日志脱敏, 避免 docker run 命令行泄露明文
+            echo "::add-mask::${{ inputs.pppoe_password }}"
           fi
 
       - name: Save Custom Router IP
@@ -90,25 +96,21 @@ jobs:
           profile="${{ inputs.profile }}"
           include_docker="${{ inputs.include_docker }}"
 
-          IFS=',' read -r -a profile_array <<< "$profile"
-
-          for p in "${profile_array[@]}"; do
-            echo "Building for profile: $p (version=$openwrt_version)"
-            docker run --rm -i \
-              --user root \
-              -v "${{ github.workspace }}/bin:/builder/bin" \
-              -v "${{ github.workspace }}/files:/builder/files" \
-              -v "${{ github.workspace }}/custom:/builder/files/etc/config" \
-              -v "${{ github.workspace }}/x86-64/openwrt.config:/builder/.config" \
-              -v "${{ github.workspace }}/shell:/builder/shell" \
-              -v "${{ github.workspace }}/x86-64/build.sh:/builder/build.sh" \
-              -e PROFILE=$p \
-              -e INCLUDE_DOCKER=$include_docker \
-              -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
-              -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
-              -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
-              openwrt/imagebuilder:x86-64-${openwrt_version} /bin/bash /builder/build.sh
-          done
+          echo "Building for profile: $profile (version=$openwrt_version)"
+          docker run --rm -i \
+            --user root \
+            -v "${{ github.workspace }}/bin:/builder/bin" \
+            -v "${{ github.workspace }}/files:/builder/files" \
+            -v "${{ github.workspace }}/custom:/builder/files/etc/config" \
+            -v "${{ github.workspace }}/x86-64/openwrt.config:/builder/.config" \
+            -v "${{ github.workspace }}/shell:/builder/shell" \
+            -v "${{ github.workspace }}/x86-64/build.sh:/builder/build.sh" \
+            -e ROOTFS_PARTSIZE=$profile \
+            -e INCLUDE_DOCKER=$include_docker \
+            -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
+            -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
+            -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
+            openwrt/imagebuilder:x86-64-${openwrt_version} /bin/bash /builder/build.sh
 
       - name: Create info
         run: |
