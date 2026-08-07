@@ -26,16 +26,13 @@ if [ -z "$CUSTOM_PACKAGES" ]; then
   echo "⚪️ 未选择任何第三方软件包"
 else
   echo "🔄 正在同步第三方软件仓库..."
-  git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
+  git clone --depth=1 https://github.com/szwjp/luci.git /tmp/store-apk-repo
 
   mkdir -p "${WORK_DIR}/extra-packages"
-  if [ -d /tmp/store-apk-repo/run/x86 ]; then
-    cp -r /tmp/store-apk-repo/run/x86/* "${WORK_DIR}/extra-packages/"
-    echo "✅ Run files copied to extra-packages:"
-    ls -lh "${WORK_DIR}/extra-packages/"*.run || true
-  else
-    echo "⚠️ 上游仓库缺少 run/x86 目录, 跳过第三方包"
-  fi
+  # szwjp/luci 仓库结构: .run 文件在仓库根目录, 子目录存放 .apk
+  cp -r /tmp/store-apk-repo/* "${WORK_DIR}/extra-packages/"
+  echo "✅ 第三方包已复制至 extra-packages:"
+  ls -lh "${WORK_DIR}/extra-packages/"*.run || true
 
   (cd "${WORK_DIR}" && sh shell/apk-prepare-packages.sh)
   ls -lah "${WORK_DIR}/packages/"
