@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 仅支持 ImmortalWrt 25.12.x (apk 包格式)
-STORE_REPO="https://github.com/wukongdaily/apk.git"
+STORE_REPO="https://github.com/szwjp/luci.git"
 
 CUSTOM_PACKAGES=""
 source "shell/custom-packages.sh"
@@ -30,13 +30,10 @@ else
   git clone --depth=1 "$STORE_REPO" /tmp/store-repo
 
   mkdir -p /home/build/immortalwrt/extra-packages
-  if [ -d /tmp/store-repo/run/x86 ]; then
-    cp -r /tmp/store-repo/run/x86/* /home/build/immortalwrt/extra-packages/
-    echo "✅ Run files copied to extra-packages:"
-    ls -lh /home/build/immortalwrt/extra-packages/*.run || true
-  else
-    echo "⚠️ 上游仓库缺少 run/x86 目录, 跳过第三方包"
-  fi
+  # szwjp/luci 仓库结构: .run 文件在仓库根目录, 子目录存放 .apk
+  cp -r /tmp/store-repo/* /home/build/immortalwrt/extra-packages/
+  echo "✅ 第三方包已复制至 extra-packages:"
+  ls -lh /home/build/immortalwrt/extra-packages/*.run || true
 
   sh shell/prepare-packages.sh
   ls -lah /home/build/immortalwrt/packages/
