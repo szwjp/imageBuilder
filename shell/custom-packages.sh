@@ -31,6 +31,8 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-homeproxy-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-lucky-zh-cn"
 #网络加速器
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-turboacc-zh-cn"
+#官方源不包含opevpn，作为第三方加入
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-openvpn-server-zh-cn"
 
 #===========================以下仓库内的软件==============================↓
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-acl-zh-cn"
