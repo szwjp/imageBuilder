@@ -106,6 +106,7 @@ jobs:
             -v "${{ github.workspace }}/shell:/builder/shell" \
             -v "${{ github.workspace }}/x86-64/build.sh:/builder/build.sh" \
             -e ROOTFS_PARTSIZE=$profile \
+            -e BUILD_VERSION=$openwrt_version \
             -e INCLUDE_DOCKER=$include_docker \
             -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
             -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
