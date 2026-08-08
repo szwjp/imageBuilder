@@ -27,6 +27,8 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-nft-tproxy kmod-nft-socket xray-core naiv
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-openclash luci-compat kmod-tun kmod-inet-diag kmod-nft-tproxy bash curl ip-full unzip"
 #反向代理软件
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-lucky-zh-cn"
+#网络加速器
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-turboacc-zh-cn"
 
 #===========================以下imm仓库内的软件==============================
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-3cat-zh-cn"
