@@ -47,11 +47,6 @@ if [ -n "${BUILD_VERSION:-}" ]; then
     echo "固件版本已注入: $BUILD_VERSION | 源: $(grep '^CONFIG_VERSION_REPO' .config)"
 fi
 
-if [ -n "${BUILD_VERSION:-}" ]; then
-    sed -i "s|^CONFIG_VERSION_NUMBER=.*|CONFIG_VERSION_NUMBER=\"$BUILD_VERSION\"|" "${WORK_DIR}/.config"
-    echo "固件版本已注入: $BUILD_VERSION | 源: $(grep '^CONFIG_VERSION_REPO' "${WORK_DIR}/.config")"
-fi
-
 echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始构建固件..."
 PACKAGES="$CUSTOM_PACKAGES"
 
