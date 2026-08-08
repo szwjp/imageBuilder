@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: openwrt
 
@@ -132,7 +132,7 @@ jobs:
 
       - name: Upload firmware as release (img)
         if: inputs.output_format == 'img'
-        uses: softprops/action-gh-release@v2.2.1
+        uses: softprops/action-gh-release@v3.0.2
         with:
           tag_name: Autobuild-OpenWrt-x86-64
           body_path: ${{ github.workspace }}/router-info.md
@@ -177,7 +177,7 @@ jobs:
           bash autobuild/autobuild.sh "../$firmware_file"
 
       - name: Upload ISO to Release
-        uses: softprops/action-gh-release@v2.2.1
+        uses: softprops/action-gh-release@v3.0.2
         with:
           tag_name: "OpenWrt-Installer-x86_64-ISO"
           body_path: "${{ github.workspace }}/img-installer/autobuild/info.md"
