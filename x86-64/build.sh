@@ -41,7 +41,9 @@ fi
 
 # 版本注入: 固件版本号/源地址由构建参数动态生成 (workflow 传入 BUILD_VERSION), 避免硬编码
 if [ -n "${BUILD_VERSION:-}" ]; then
-    sed -i "s|^CONFIG_VERSION_NUMBER=.*|CONFIG_VERSION_NUMBER=\"$BUILD_VERSION\"|" .config
+    sed "s|^CONFIG_VERSION_NUMBER=.*|CONFIG_VERSION_NUMBER=\"$BUILD_VERSION\"|" .config > /tmp/version-config.tmp
+    cat /tmp/version-config.tmp > .config
+    rm -f /tmp/version-config.tmp
     echo "固件版本已注入: $BUILD_VERSION | 源: $(grep '^CONFIG_VERSION_REPO' .config)"
 fi
 
