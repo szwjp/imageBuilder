@@ -79,36 +79,44 @@ jobs:
         run: chmod +x ${{ github.workspace }}/x86-64/build.sh
 
       - name: Validate inputs
+        env:
+          PROFILE: ${{ inputs.profile }}
+          CUSTOM_ROUTER_IP: ${{ inputs.custom_router_ip }}
+          ENABLE_PPPOE: ${{ inputs.enable_pppoe }}
+          PPPOE_ACCOUNT: ${{ inputs.pppoe_account }}
+          PPPOE_PASSWORD: ${{ inputs.pppoe_password }}
         run: |
-          if ! [[ "${{ inputs.profile }}" =~ ^[0-9]+$ ]]; then
+          if ! [[ "$PROFILE" =~ ^[0-9]+$ ]]; then
             echo "Error: profile 必须是数字 (MB)，不支持逗号分隔多尺寸"
             exit 1
           fi
-          if ! [[ "${{ inputs.custom_router_ip }}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+          if ! [[ "$CUSTOM_ROUTER_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
             echo "Error: custom_router_ip 必须是合法 IPv4 地址, 如 192.168.1.1"
             exit 1
           fi
-          if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
-            if [[ -z "${{ inputs.pppoe_account }}" || -z "${{ inputs.pppoe_password }}" ]]; then
+          if [[ "$ENABLE_PPPOE" == "yes" ]]; then
+            if [[ -z "$PPPOE_ACCOUNT" || -z "$PPPOE_PASSWORD" ]]; then
               echo "Error: PPPoE account and password must be provided when PPPoE is enabled!"
               exit 1
             fi
-            if ! [[ "${{ inputs.pppoe_account }}" =~ ^[A-Za-z0-9@._-]+$ ]]; then
+            if ! [[ "$PPPOE_ACCOUNT" =~ ^[A-Za-z0-9@._-]+$ ]]; then
               echo "Error: pppoe_account 含不允许的字符 (仅允许字母数字 @ . _ -)"
               exit 1
             fi
-            if ! [[ "${{ inputs.pppoe_password }}" =~ ^[A-Za-z0-9@!#%+=._-]+$ ]]; then
+            if ! [[ "$PPPOE_PASSWORD" =~ ^[A-Za-z0-9@!#%+=._-]+$ ]]; then
               echo "Error: pppoe_password 含不允许的字符 (不允许空格、引号、\$、&、;、|、<、>、\\、() 等)"
               exit 1
             fi
             # 将密码加入日志脱敏
-            echo "::add-mask::${{ inputs.pppoe_password }}"
+            echo "::add-mask::$PPPOE_PASSWORD"
           fi
 
       - name: Save Custom Router IP
+        env:
+          CUSTOM_ROUTER_IP: ${{ inputs.custom_router_ip }}
         run: |
           mkdir -p "${{ github.workspace }}/custom"
-          echo "${{ inputs.custom_router_ip }}" > "${{ github.workspace }}/custom/custom_router_ip.txt"
+          printf '%s\n' "$CUSTOM_ROUTER_IP" > "${{ github.workspace }}/custom/custom_router_ip.txt"
 
       - name: Build firmware
         env:
@@ -147,7 +155,17 @@ jobs:
           echo "Building for profile: $PROFILE (work_dir=$WORK_DIR)"
           git checkout "$BRANCH"
 
+          # 校验目标分支源码文件存在, 避免 docker bind-mount 对缺失路径静默创建空目录
+          for src in "$CONFIG" x86-64/build.sh shell/custom-packages.sh shell/prepare-packages.sh files/etc/uci-defaults/99-custom.sh; do
+            if [ ! -f "$src" ]; then
+              echo "Error: $src 在 $BRANCH 分支不存在, 目标分支与 workflow 不匹配"
+              exit 1
+            fi
+          done
+
           # 敏感信息(PPPoE 密码)走 env-file, 避免出现在 docker run 进程列表/日志
+          # trap 兜底: docker run 失败时也确保删除明文 env 文件
+          trap 'rm -f .build.env' EXIT
           printf 'ROOTFS_PARTSIZE=%s\n' "$PROFILE" > .build.env
           printf 'BUILD_VERSION=%s\n' "$VERSION" >> .build.env
           printf 'INCLUDE_DOCKER=%s\n' "$INCLUDE_DOCKER" >> .build.env
@@ -170,22 +188,25 @@ jobs:
 
           # 传递 tag 给后续步骤
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
-          echo "ISO_TAG=$ISO_TAG" >> "$GITHUB_ENV"
           echo "TARGET=$TARGET" >> "$GITHUB_ENV"
 
       - name: Create info
+        env:
+          CUSTOM_ROUTER_IP: ${{ inputs.custom_router_ip }}
+          VERSION: ${{ inputs.version }}
+          INCLUDE_DOCKER: ${{ inputs.include_docker }}
         run: |
           cat > ${{ github.workspace }}/router-info.md <<EOF
           ## 📡 路由器后台信息
 
-          - 🏠 **后台地址**: https://${{ inputs.custom_router_ip }} (nginx 主入口, 自签证书)
-          - 🔗 **备用入口**: http://${{ inputs.custom_router_ip }}:8080 (uhttpd)
+          - 🏠 **后台地址**: https://$CUSTOM_ROUTER_IP (nginx 主入口, 自签证书)
+          - 🔗 **备用入口**: http://$CUSTOM_ROUTER_IP:8080 (uhttpd)
           - 👤 **用户名**: root
           - 🔑 **密码**: 无
-          - 📦 **版本**: ${{ inputs.version }} (${{ env.TARGET }})
+          - 📦 **版本**: $VERSION (${{ env.TARGET }})
           EOF
 
-          if [ "${{ inputs.include_docker }}" == "yes" ]; then
+          if [ "$INCLUDE_DOCKER" == "yes" ]; then
             echo -e "\n#### 默认带docker" >> ${{ github.workspace }}/router-info.md
           else
             echo -e "\n#### 不带docker" >> ${{ github.workspace }}/router-info.md

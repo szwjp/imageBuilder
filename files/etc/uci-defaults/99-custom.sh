@@ -193,8 +193,10 @@ uci commit nginx
 if command -v dockerd >/dev/null 2>&1; then
     echo "检测到 Docker，正在配置防火墙规则..."
 
-    # 删除所有名为 docker 的 zone
-    uci -q delete firewall.docker
+    # 删除所有名为 docker 的 zone (含 uci add 创建的匿名 section, 保证脚本可重复执行)
+    for dz_old in $(uci show firewall | awk -F '[.=]' '/\.name=.docker.$/ {print $2}'); do
+        uci -q delete "firewall.$dz_old"
+    done
 
     # 先获取所有 forwarding 索引，倒序排列删除
     for idx in $(uci show firewall | grep "=forwarding" | cut -d[ -f2 | cut -d] -f1 | sort -rn); do
