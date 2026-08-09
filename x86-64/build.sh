@@ -25,6 +25,8 @@ EOF
 
 echo "pppoe-settings 内容 (密码已隐藏):"
 grep -v '^pppoe_password' "${WORK_DIR}/files/etc/config/pppoe-settings"
+# 收紧权限, 防止固件镜像内明文凭据被普通用户读取
+chmod 600 "${WORK_DIR}/files/etc/config/pppoe-settings"
 
 if [ -z "$CUSTOM_PACKAGES" ]; then
   echo "⚪️ 未选择 任何第三方软件包"
@@ -49,7 +51,9 @@ else
     (cd "${WORK_DIR}" && sh shell/prepare-packages.sh)
     ls -lah "${WORK_DIR}/packages/"
   else
-    echo "⚠️ 上游仓库克隆失败, 跳过第三方包" >&2
+    # 第三方包缺失时构建仍会成功但固件缺包, 属静默失败, 直接终止
+    echo "❌ 上游仓库克隆失败, 第三方包无法集成" >&2
+    exit 1
   fi
 fi
 
