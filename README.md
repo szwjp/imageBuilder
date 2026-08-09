@@ -14,17 +14,18 @@
 
 ```
 OpenWrt-ImageBuilder/
-├── .github/workflows/
-│   ├── build-x86-64.yml            # 统一构建工作流
-│   └── clean-workflow.yml          # 工作流清理
+├── .github/workflows/             # 工作流定义在 master 分支
+│   ├── build.yml                  # 统一构建工作流 (target=openwrt)
+│   └── clean-workflow.yml         # 工作流清理
 ├── x86-64/
-│   ├── build.sh                    # 构建脚本
-│   └── openwrt.config              # 内核配置
+│   ├── build.sh                   # 构建脚本
+│   └── openwrt.config             # 内核配置
 ├── shell/
-│   ├── custom-packages.sh          # 自定义软件包配置
-│   └── apk-prepare-packages.sh     # APK 包准备脚本
+│   ├── custom-packages.sh         # 自定义软件包配置
+│   ├── prepare-packages.sh        # APK 包准备脚本
+│   └── luci-dirs.txt              # 第三方 apk 源目录白名单 (sparse-checkout)
 └── files/etc/uci-defaults/
-    └── 99-custom.sh                # 固件首次启动配置脚本
+    └── 99-custom.sh               # 固件首次启动配置脚本
 ```
 
 ## 操作手册
@@ -33,7 +34,7 @@ OpenWrt-ImageBuilder/
 
 1. Fork 本项目
 2. 在 fork 后的项目中点击 【Actions】
-3. 找到 Build OpenWrt x86-64 工作流后点击 【Run workflow】
+3. 找到 Build Firmware 工作流，target 选择 `openwrt` 后点击 【Run workflow】
 
 ### 固件默认属性
 
