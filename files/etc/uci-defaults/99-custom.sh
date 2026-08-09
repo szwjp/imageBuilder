@@ -7,7 +7,14 @@ echo "Starting 99-custom.sh at $(date)" >>$LOGFILE
 # 因为本项目中 单网口模式是dhcp模式 直接就能上网并且访问web界面 避免新手每次都要修改/etc/config/network中的静态ip
 # 当你刷机运行后 都调整好了 你完全可以在web页面自行关闭 wan口防火墙的入站数据
 # 具体操作方法：网络——防火墙 在wan的入站数据 下拉选项里选择 拒绝 保存并应用即可。
-uci set firewall.@zone[1].input='ACCEPT'
+# 按名称查找 wan zone 并放行入站 (不硬编码索引, 避免防火墙配置顺序变化导致失效)
+wan_zone=$(uci show firewall | awk -F '[.=]' '/\.name=.wan.$/ {print $2; exit}')
+if [ -n "$wan_zone" ]; then
+    uci set "firewall.$wan_zone.input='ACCEPT'"
+    echo "wan zone ($wan_zone) 入站已放行" >>$LOGFILE
+else
+    echo "warning: cannot find wan zone, skip firewall input ACCEPT" >>$LOGFILE
+fi
 
 # 设置主机名映射，解决安卓原生 TV 无法联网的问题
 uci add dhcp domain
@@ -185,7 +192,6 @@ uci commit nginx
 # 方便各类docker容器的端口顺利通过防火墙
 if command -v dockerd >/dev/null 2>&1; then
     echo "检测到 Docker，正在配置防火墙规则..."
-    FW_FILE="/etc/config/firewall"
 
     # 删除所有名为 docker 的 zone
     uci -q delete firewall.docker
@@ -200,32 +206,29 @@ if command -v dockerd >/dev/null 2>&1; then
             uci delete firewall.@forwarding[$idx]
         fi
     done
-    # 提交删除
+
+    # 用 uci add 重建 zone + forwarding (避免直接追加文件在脚本重跑时产生重复配置)
+    dz=$(uci add firewall zone)
+    uci set "$dz.name='docker'"
+    uci set "$dz.input='ACCEPT'"
+    uci set "$dz.output='ACCEPT'"
+    uci set "$dz.forward='ACCEPT'"
+    uci add_list "$dz.subnet='172.16.0.0/12'"
+
+    df1=$(uci add firewall forwarding)
+    uci set "$df1.src='docker'"
+    uci set "$df1.dest='lan'"
+
+    df2=$(uci add firewall forwarding)
+    uci set "$df2.src='docker'"
+    uci set "$df2.dest='wan'"
+
+    df3=$(uci add firewall forwarding)
+    uci set "$df3.src='lan'"
+    uci set "$df3.dest='docker'"
+
     uci commit firewall
-
-# 追加新的 zone + forwarding 配置
-cat <<EOF >>"$FW_FILE"
-
-config zone 'docker'
-  option input 'ACCEPT'
-  option output 'ACCEPT'
-  option forward 'ACCEPT'
-  option name 'docker'
-  list subnet '172.16.0.0/12'
-
-config forwarding
-  option src 'docker'
-  option dest 'lan'
-
-config forwarding
-  option src 'docker'
-  option dest 'wan'
-
-config forwarding
-  option src 'lan'
-  option dest 'docker'
-EOF
-
+    echo "Docker 防火墙规则已配置 (zone: $dz)" >>$LOGFILE
 else
     echo "未检测到 Docker，跳过防火墙配置。"
 fi

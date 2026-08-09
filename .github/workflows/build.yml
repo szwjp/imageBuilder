@@ -1,16 +1,28 @@
-name: Build ImmortalWrt x86-64
+name: Build Firmware
 
 on:
   workflow_dispatch:
     inputs:
-      luci_version:
-        description: "ImmortalWrt 版本号"
+      target:
+        description: "目标固件 (ImmortalWrt 走 master 分支, OpenWrt 走 openwrt 分支)"
+        required: true
+        default: 'immortalwrt'
+        type: choice
+        options:
+          - immortalwrt
+          - openwrt
+      version:
+        description: "固件版本号"
         required: true
         default: "25.12.1"
         type: choice
         options:
           - 25.12.0
           - 25.12.1
+          - 25.12.2
+          - 25.12.3
+          - 25.12.4
+          - 25.12.5
       output_format:
         description: "输出格式"
         required: true
@@ -24,7 +36,7 @@ on:
         required: true
         default: "192.168.1.1"
       profile:
-        description: '固件大小 单位(MB)'
+        description: "固件大小 单位(MB)"
         required: true
         default: '1024'
       include_docker:
@@ -60,6 +72,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set executable permissions
         run: chmod +x ${{ github.workspace }}/x86-64/build.sh
@@ -70,12 +84,24 @@ jobs:
             echo "Error: profile 必须是数字 (MB)，不支持逗号分隔多尺寸"
             exit 1
           fi
+          if ! [[ "${{ inputs.custom_router_ip }}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+            echo "Error: custom_router_ip 必须是合法 IPv4 地址, 如 192.168.1.1"
+            exit 1
+          fi
           if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
             if [[ -z "${{ inputs.pppoe_account }}" || -z "${{ inputs.pppoe_password }}" ]]; then
               echo "Error: PPPoE account and password must be provided when PPPoE is enabled!"
               exit 1
             fi
-            # 将密码加入日志脱敏, 避免 docker run 命令行泄露明文
+            if ! [[ "${{ inputs.pppoe_account }}" =~ ^[A-Za-z0-9@._-]+$ ]]; then
+              echo "Error: pppoe_account 含不允许的字符 (仅允许字母数字 @ . _ -)"
+              exit 1
+            fi
+            if ! [[ "${{ inputs.pppoe_password }}" =~ ^[A-Za-z0-9@!#%+=._-]+$ ]]; then
+              echo "Error: pppoe_password 含不允许的字符 (不允许空格、引号、\$、&、;、|、<、>、\\、() 等)"
+              exit 1
+            fi
+            # 将密码加入日志脱敏
             echo "::add-mask::${{ inputs.pppoe_password }}"
           fi
 
@@ -84,30 +110,68 @@ jobs:
           mkdir -p "${{ github.workspace }}/custom"
           echo "${{ inputs.custom_router_ip }}" > "${{ github.workspace }}/custom/custom_router_ip.txt"
 
-      - name: Build ImmortalWrt firmware
+      - name: Build firmware
+        env:
+          TARGET: ${{ inputs.target }}
+          VERSION: ${{ inputs.version }}
+          PROFILE: ${{ inputs.profile }}
+          INCLUDE_DOCKER: ${{ inputs.include_docker }}
+          ENABLE_PPPOE: ${{ inputs.enable_pppoe }}
+          PPPOE_ACCOUNT: ${{ inputs.pppoe_account }}
+          PPPOE_PASSWORD: ${{ inputs.pppoe_password }}
         run: |
-          luci_version="${{ inputs.luci_version }}"
-          profile="${{ inputs.profile }}"
-          include_docker="${{ inputs.include_docker }}"
+          case "$TARGET" in
+            immortalwrt)
+              BRANCH=master
+              WORK_DIR=/home/build/immortalwrt
+              IMAGE="immortalwrt/imagebuilder:x86-64-openwrt-${VERSION}"
+              CONFIG=x86-64/imm.config
+              RELEASE_TAG=Autobuild-x86-64
+              ISO_TAG=Custom-Installer-x86_64-ISO
+              ;;
+            openwrt)
+              BRANCH=openwrt
+              WORK_DIR=/builder
+              IMAGE="openwrt/imagebuilder:x86-64-${VERSION}"
+              CONFIG=x86-64/openwrt.config
+              RELEASE_TAG=Autobuild-OpenWrt-x86-64
+              ISO_TAG=OpenWrt-Installer-x86_64-ISO
+              ;;
+            *)
+              echo "Error: unknown target '$TARGET'"
+              exit 1
+              ;;
+          esac
 
-          image_tag="$luci_version"
+          echo "Target: $TARGET | Branch: $BRANCH | Version: $VERSION | Image: $IMAGE"
+          echo "Building for profile: $PROFILE (work_dir=$WORK_DIR)"
+          git checkout "$BRANCH"
 
-          echo "Building for profile: $profile (image_tag=$image_tag)"
+          # 敏感信息(PPPoE 密码)走 env-file, 避免出现在 docker run 进程列表/日志
+          printf 'ROOTFS_PARTSIZE=%s\n' "$PROFILE" > .build.env
+          printf 'BUILD_VERSION=%s\n' "$VERSION" >> .build.env
+          printf 'INCLUDE_DOCKER=%s\n' "$INCLUDE_DOCKER" >> .build.env
+          printf 'ENABLE_PPPOE=%s\n' "$ENABLE_PPPOE" >> .build.env
+          printf 'PPPOE_ACCOUNT=%s\n' "$PPPOE_ACCOUNT" >> .build.env
+          printf 'PPPOE_PASSWORD=%s\n' "$PPPOE_PASSWORD" >> .build.env
+
           docker run --rm -i \
             --user root \
-            -v "${{ github.workspace }}/bin:/home/build/immortalwrt/bin" \
-            -v "${{ github.workspace }}/files:/home/build/immortalwrt/files" \
-            -v "${{ github.workspace }}/custom:/home/build/immortalwrt/files/etc/config" \
-            -v "${{ github.workspace }}/x86-64/imm.config:/home/build/immortalwrt/.config" \
-            -v "${{ github.workspace }}/shell:/home/build/immortalwrt/shell" \
-            -v "${{ github.workspace }}/x86-64/build.sh:/home/build/immortalwrt/build.sh" \
-            -e ROOTFS_PARTSIZE=$profile \
-            -e BUILD_VERSION=$luci_version \
-            -e INCLUDE_DOCKER=$include_docker \
-            -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
-            -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
-            -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
-            immortalwrt/imagebuilder:x86-64-openwrt-${image_tag} /bin/bash /home/build/immortalwrt/build.sh
+            -v "${{ github.workspace }}/bin:$WORK_DIR/bin" \
+            -v "${{ github.workspace }}/files:$WORK_DIR/files" \
+            -v "${{ github.workspace }}/custom:$WORK_DIR/files/etc/config" \
+            -v "${{ github.workspace }}/$CONFIG:$WORK_DIR/.config" \
+            -v "${{ github.workspace }}/shell:$WORK_DIR/shell" \
+            -v "${{ github.workspace }}/x86-64/build.sh:$WORK_DIR/build.sh" \
+            --env-file .build.env \
+            -e WORK_DIR=$WORK_DIR \
+            "$IMAGE" /bin/bash "$WORK_DIR/build.sh"
+          rm -f .build.env
+
+          # 传递 tag 给后续步骤
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "ISO_TAG=$ISO_TAG" >> "$GITHUB_ENV"
+          echo "TARGET=$TARGET" >> "$GITHUB_ENV"
 
       - name: Create info
         run: |
@@ -118,6 +182,7 @@ jobs:
           - 🔗 **备用入口**: http://${{ inputs.custom_router_ip }}:8080 (uhttpd)
           - 👤 **用户名**: root
           - 🔑 **密码**: 无
+          - 📦 **版本**: ${{ inputs.version }} (${{ env.TARGET }})
           EOF
 
           if [ "${{ inputs.include_docker }}" == "yes" ]; then
@@ -130,7 +195,7 @@ jobs:
         if: inputs.output_format == 'img'
         uses: softprops/action-gh-release@v3.0.2
         with:
-          tag_name: Autobuild-x86-64
+          tag_name: ${{ env.RELEASE_TAG }}
           body_path: ${{ github.workspace }}/router-info.md
           files: |
             ${{ github.workspace }}/bin/targets/x86/64/*squashfs-combined-efi.img.gz
@@ -159,7 +224,7 @@ jobs:
           name: firmware-img
 
       - name: Clone img-installer
-        run: git clone https://github.com/wukongdaily/img-installer.git
+        run: git clone --depth=1 https://github.com/wukongdaily/img-installer.git
 
       - name: Set executable permissions
         run: |
@@ -173,9 +238,11 @@ jobs:
           bash autobuild/autobuild.sh "../$firmware_file"
 
       - name: Upload ISO to Release
+        env:
+          ISO_TAG: ${{ inputs.target == 'openwrt' && 'OpenWrt-Installer-x86_64-ISO' || 'Custom-Installer-x86_64-ISO' }}
         uses: softprops/action-gh-release@v3.0.2
         with:
-          tag_name: "Custom-Installer-x86_64-ISO"
+          tag_name: ${{ env.ISO_TAG }}
           body_path: "${{ github.workspace }}/img-installer/autobuild/info.md"
           files: |
             img-installer/output/custom-installer-x86_64.iso

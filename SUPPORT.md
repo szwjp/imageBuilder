@@ -12,15 +12,15 @@
 ```
 ImmortalWrt-ImageBuilder/
 ├── .github/workflows/          # GitHub Actions 工作流目录
-│   ├── build-immortalwrt.yml       # ImmortalWrt 构建工作流 (通过参数选择版本号和输出格式)
-│   ├── build-openwrt.yml           # OpenWrt 构建工作流 (基于 openwrt 分支)
+│   ├── build.yml                   # 固件构建工作流 (target 参数选择 ImmortalWrt/OpenWrt)
 │   └── clean-workflow.yml          # 工作流清理
 ├── x86-64/                      # x86-64 平台配置目录
 │   ├── build.sh                 # 构建脚本
 │   └── imm.config               # 25.12.x 版本配置
 ├── shell/                       # 构建脚本和包管理目录
 │   ├── custom-packages.sh       # 自定义软件包配置 (25.12.x, APK)
-│   └── prepare-packages.sh      # 软件包准备脚本 (apk)
+│   ├── prepare-packages.sh      # 软件包准备脚本 (apk)
+│   └── luci-dirs.txt            # 第三方 apk 源目录白名单 (sparse-checkout)
 └── files/etc/uci-defaults/      # 固件自定义文件目录
     └── 99-custom.sh             # 固件首次启动配置脚本
 ```

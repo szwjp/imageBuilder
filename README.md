@@ -15,20 +15,20 @@
 ```
 ImmortalWrt-ImageBuilder/
 ├── .github/workflows/          # GitHub Actions 工作流目录
-│   ├── build-immortalwrt.yml       # ImmortalWrt 构建工作流 (通过参数选择版本号和输出格式)
-│   ├── build-openwrt.yml           # OpenWrt 构建工作流 (基于 openwrt 分支)
+│   ├── build.yml                   # 固件构建工作流 (target 参数选择 ImmortalWrt/OpenWrt)
 │   └── clean-workflow.yml          # 工作流清理
 ├── x86-64/                      # x86-64 平台配置目录
 │   ├── build.sh                 # 构建脚本
 │   └── imm.config               # 25.12.x 版本配置
 ├── shell/                       # 构建脚本和包管理目录
 │   ├── custom-packages.sh       # 自定义软件包配置 (25.12.x, APK)
-│   └── prepare-packages.sh      # 软件包准备脚本 (apk)
+│   ├── prepare-packages.sh      # 软件包准备脚本 (apk)
+│   └── luci-dirs.txt            # 第三方 apk 源目录白名单 (sparse-checkout)
 └── files/etc/uci-defaults/      # 固件自定义文件目录
     └── 99-custom.sh             # 固件首次启动配置脚本
 ```
 
-> 注：OpenWrt 构建工作流（build-openwrt.yml）基于独立的 `openwrt` 分支，该分支含 openwrt 专用配置（`x86-64/openwrt.config`、`shell/apk-prepare-packages.sh`）。
+> 注：`build.yml` 的 target 选择 `openwrt` 时，构建基于独立的 `openwrt` 分支（含 openwrt 专用配置 `x86-64/openwrt.config` 与不同的包启用集合）。
 
 ## 操作手册
 
@@ -36,7 +36,7 @@ ImmortalWrt-ImageBuilder/
 
 1. Fork 本项目
 2. 在 fork 后的项目中点击 【Actions】
-3. 找到需要的工作流后点击 【Run workflow】
+3. 找到 Build Firmware 工作流，选择 target（`immortalwrt` 或 `openwrt`）与参数后点击 【Run workflow】
 
 ### 固件默认属性
 
