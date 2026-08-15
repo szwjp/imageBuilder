@@ -5,6 +5,8 @@ set -euo pipefail
 # 由 workflow 按 target 注入, 本地手动构建默认 ImmortalWrt 路径
 WORK_DIR="${WORK_DIR:-/home/build/immortalwrt}"
 STORE_REPO="https://github.com/szwjp/luci.git"
+# 供应链加固: 锁定到指定 commit, 升级第三方包时同步更新 (git ls-remote https://github.com/szwjp/luci.git master)
+STORE_REPO_REF="${STORE_REPO_REF:-4e389ea063427433f93d55627eb44b9cd230a009}"
 LUCI_DIRS_FILE="${LUCI_DIRS_FILE:-shell/luci-dirs.txt}"
 
 CUSTOM_PACKAGES=""
@@ -35,6 +37,8 @@ else
   # sparse-checkout 只拉需要的软件目录, 避免全量下载约 400MB 的代理内核 apk
   rm -rf /tmp/store-repo
   if git clone --depth=1 --filter=blob:none --sparse "$STORE_REPO" /tmp/store-repo; then
+    git -C /tmp/store-repo fetch --depth=1 origin "$STORE_REPO_REF"
+    git -C /tmp/store-repo checkout --detach "$STORE_REPO_REF"
     if [ -f "${WORK_DIR}/shell/luci-dirs.txt" ]; then
       (cd /tmp/store-repo && git sparse-checkout set --cone $(grep -v '^#' "${WORK_DIR}/shell/luci-dirs.txt"))
     else
