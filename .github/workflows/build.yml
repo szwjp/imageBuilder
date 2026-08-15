@@ -92,14 +92,21 @@ jobs:
               echo "Error: PPPoE account and password must be provided when PPPoE is enabled!"
               exit 1
             fi
-            if ! [[ "$PPPOE_ACCOUNT" =~ ^[A-Za-z0-9@._-]+$ ]]; then
-              echo "Error: pppoe_account 含不允许的字符 (仅允许字母数字 @ . _ -)"
-              exit 1
-            fi
-            if ! [[ "$PPPOE_PASSWORD" =~ ^[A-Za-z0-9@!#%+=._-]+$ ]]; then
-              echo "Error: pppoe_password 含不允许的字符 (不允许空格、引号、\$、&、;、|、<、>、\\、() 等)"
-              exit 1
-            fi
+            # 黑名单校验: 仅拦截会破坏 shell source/uci 赋值的空白与 shell 元字符;
+            # 其余字符(含中文等非 ASCII)放行, 避免误伤真实宽带账号
+            BAD_CHARS=$(printf ' \t\n"\047\140$&|;<>()\134')
+            check_pppoe_value() {
+              local v="$1" label="$2" c i
+              for ((i=0; i<${#BAD_CHARS}; i++)); do
+                c="${BAD_CHARS:i:1}"
+                if [[ "$v" == *"$c"* ]]; then
+                  echo "Error: $label 含不允许的字符 (空白或 shell 元字符)"
+                  exit 1
+                fi
+              done
+            }
+            check_pppoe_value "$PPPOE_ACCOUNT" pppoe_account
+            check_pppoe_value "$PPPOE_PASSWORD" pppoe_password
             # 将密码加入日志脱敏
             echo "::add-mask::$PPPOE_PASSWORD"
           fi
