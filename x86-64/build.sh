@@ -5,7 +5,6 @@ set -euo pipefail
 # 由 workflow 按 target 注入, 本地手动构建默认 ImmortalWrt 路径
 WORK_DIR="${WORK_DIR:-/home/build/immortalwrt}"
 STORE_REPO="https://github.com/szwjp/luci.git"
-LUCI_DIRS_FILE="${LUCI_DIRS_FILE:-shell/luci-dirs.txt}"
 
 CUSTOM_PACKAGES=""
 source "${WORK_DIR}/shell/custom-packages.sh"
@@ -32,16 +31,9 @@ if [ -z "$CUSTOM_PACKAGES" ]; then
   echo "⚪️ 未选择 任何第三方软件包"
 else
   echo "🔄 正在同步第三方软件仓库..."
-  # sparse-checkout 只拉需要的软件目录, 避免全量下载约 400MB 的代理内核 apk
+  # 全量 checkout (不再用 luci-dirs.txt sparse 白名单)
   rm -rf /tmp/store-repo
-  if git clone --depth=1 --filter=blob:none --sparse "$STORE_REPO" /tmp/store-repo; then
-    if [ -f "${WORK_DIR}/shell/luci-dirs.txt" ]; then
-      (cd /tmp/store-repo && git sparse-checkout set --cone $(grep -v '^#' "${WORK_DIR}/shell/luci-dirs.txt"))
-    else
-      echo "⚠️ shell/luci-dirs.txt 不存在, 退化为全量 checkout"
-      (cd /tmp/store-repo && git sparse-checkout disable)
-    fi
-
+  if git clone --depth=1 "$STORE_REPO" /tmp/store-repo; then
     mkdir -p "${WORK_DIR}/extra-packages"
     # szwjp/luci 仓库结构: 每个一级子目录存放一个软件的 .apk
     cp -r /tmp/store-repo/* "${WORK_DIR}/extra-packages/"
