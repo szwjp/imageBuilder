@@ -78,33 +78,40 @@ elif [ "$count" -gt 1 ]; then
     # 查找 br-lan 设备 section
     section=$(uci show network | awk -F '[.=]' '/\.@?device\[[0-9]+\]\.name=.br-lan.$/ {print $2; exit}')
     if [ -z "$section" ]; then
-        echo "error: cannot find device 'br-lan', LAN ports not configured" >>$LOGFILE
-    else
-        # 删除原有ports
-        uci -q delete "network.$section.ports"
-        # 添加LAN接口端口
-        for port in $lan_ifnames; do
-            uci add_list "network.$section.ports"="$port"
-        done
-        # 开启 STP 防止多 LAN 口接入同一交换机时产生环路
-        uci set "network.$section.stp"='1'
-        echo "Updated br-lan ports: $lan_ifnames" >>$LOGFILE
+        # br-lan 不存在(如 config_generate 因 /etc/board.json 已存在而未生成 lan), 主动创建, 避免 LAN 全部失效
+        echo "br-lan not found, creating it" >>$LOGFILE
+        uci add network device
+        uci set network.@device[-1].name='br-lan'
+        uci set network.@device[-1].type='bridge'
+        section='@device[-1]'
+    fi
 
-        # LAN口设置静态IP (仅在 br-lan 找到时配置，避免写出半残配置)
-        uci set network.lan.proto='static'
-        # 多网口设备 支持修改为别的管理后台地址 在Github Action 的UI上自行输入即可
-        uci set network.lan.netmask='255.255.255.0'
-        # 设置路由器管理后台地址
-        IP_VALUE_FILE="/etc/config/custom_router_ip.txt"
-        if [ -f "$IP_VALUE_FILE" ]; then
-            CUSTOM_IP=$(cat "$IP_VALUE_FILE")
-            # 用户在UI上设置的路由器后台管理地址
-            uci set network.lan.ipaddr=$CUSTOM_IP
-            echo "custom router ip is $CUSTOM_IP" >> $LOGFILE
-        else
-            uci set network.lan.ipaddr='192.168.1.1'
-            echo "default router ip is 192.168.1.1" >> $LOGFILE
-        fi
+    # 删除原有ports
+    uci -q delete "network.$section.ports"
+    # 添加LAN接口端口
+    for port in $lan_ifnames; do
+        uci add_list "network.$section.ports"="$port"
+    done
+    # 开启 STP 防止多 LAN 口接入同一交换机时产生环路
+    uci set "network.$section.stp"='1'
+    echo "Updated br-lan ports: $lan_ifnames" >>$LOGFILE
+
+    # LAN口设置静态IP (显式绑定 br-lan, 并确保 lan 接口存在)
+    uci set network.lan=interface
+    uci set network.lan.device='br-lan'
+    uci set network.lan.proto='static'
+    # 多网口设备 支持修改为别的管理后台地址 在Github Action 的UI上自行输入即可
+    uci set network.lan.netmask='255.255.255.0'
+    # 设置路由器管理后台地址
+    IP_VALUE_FILE="/etc/config/custom_router_ip.txt"
+    if [ -f "$IP_VALUE_FILE" ]; then
+        CUSTOM_IP=$(cat "$IP_VALUE_FILE")
+        # 用户在UI上设置的路由器后台管理地址
+        uci set network.lan.ipaddr=$CUSTOM_IP
+        echo "custom router ip is $CUSTOM_IP" >> $LOGFILE
+    else
+        uci set network.lan.ipaddr='192.168.1.1'
+        echo "default router ip is 192.168.1.1" >> $LOGFILE
     fi
 
     # PPPoE设置 (只影响WAN口，不依赖LAN配置)
@@ -196,24 +203,25 @@ if command -v dockerd >/dev/null 2>&1; then
     done
 
     # 用 uci add 重建 zone + forwarding (避免直接追加文件在脚本重跑时产生重复配置)
+    # 注意: uci add 返回的句柄不带包名前缀, 后续 set/add_list 必须补 firewall. 前缀, 否则 uci 报 Entry not found
     dz=$(uci add firewall zone)
-    uci set "$dz.name='docker'"
-    uci set "$dz.input='ACCEPT'"
-    uci set "$dz.output='ACCEPT'"
-    uci set "$dz.forward='ACCEPT'"
-    uci add_list "$dz.subnet='172.16.0.0/12'"
+    uci set "firewall.$dz.name='docker'"
+    uci set "firewall.$dz.input='ACCEPT'"
+    uci set "firewall.$dz.output='ACCEPT'"
+    uci set "firewall.$dz.forward='ACCEPT'"
+    uci add_list "firewall.$dz.subnet='172.16.0.0/12'"
 
     df1=$(uci add firewall forwarding)
-    uci set "$df1.src='docker'"
-    uci set "$df1.dest='lan'"
+    uci set "firewall.$df1.src='docker'"
+    uci set "firewall.$df1.dest='lan'"
 
     df2=$(uci add firewall forwarding)
-    uci set "$df2.src='docker'"
-    uci set "$df2.dest='wan'"
+    uci set "firewall.$df2.src='docker'"
+    uci set "firewall.$df2.dest='wan'"
 
     df3=$(uci add firewall forwarding)
-    uci set "$df3.src='lan'"
-    uci set "$df3.dest='docker'"
+    uci set "firewall.$df3.src='lan'"
+    uci set "firewall.$df3.dest='docker'"
 
     uci commit firewall
     echo "Docker 防火墙规则已配置 (zone: $dz)" >>$LOGFILE
