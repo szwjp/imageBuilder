@@ -13,6 +13,7 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr"
 # ============ 第三方 (szwjp/luci 仓库, 见 shell/luci-dirs.txt) ============
 # 文件管理
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES bash quickfile luci-app-quickfile luci-i18n-quickfile-zh-cn"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-run"
 # 流量监控 by timsaya
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES bandix luci-app-bandix luci-i18n-bandix-zh-cn"
 # 代理内核 (官方源自带 homeproxy 和 passwall; 以下为自封装内核 apk, 覆盖官方源低版本)
@@ -21,8 +22,6 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-nft-tproxy kmod-nft-socket xray-core naiv
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-openclash luci-compat kmod-tun kmod-inet-diag kmod-nft-tproxy bash curl ip-full unzip"
 # 反向代理
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-lucky-zh-cn"
-# VPN (官方源 luci-app-openvpn-server 3.0 与 openvpn-openssl 抢 /etc/config/openvpn, 改用自维护版)
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-openvpn-server luci-i18n-openvpn-server-zh-cn"
 
 # ============ ImmortalWrt 官方源 ============
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-3cat-zh-cn"
