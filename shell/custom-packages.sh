@@ -91,11 +91,6 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-button-hotplug"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES openssh-sftp-server"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES nginx-full nginx-mod-luci"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr"
-#==== ipsec-vpnd必备包 ====
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-minimal"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-des"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-kernel-libipsec"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-xauth-generic"
 
 # ============ 第三方 (szwjp/luci 仓库) ============
 # 文件管理
@@ -170,7 +165,7 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-firewall-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-homeproxy-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-https-dns-proxy-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-irqbalance-zh-cn"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-ipsec-vpnd-zh-cn"
+#CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-ipsec-vpnd-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-keepalived-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-ksmbd-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-lldpd-zh-cn"
