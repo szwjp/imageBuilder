@@ -91,6 +91,11 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-button-hotplug"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES openssh-sftp-server"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES nginx-full nginx-mod-luci"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr"
+#==== ipsec-vpnd必备包 ====
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-minimal"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-des"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-kernel-libipsec"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES strongswan-mod-xauth-generic"
 
 # ============ 第三方 (szwjp/luci 仓库) ============
 # 文件管理
