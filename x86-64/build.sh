@@ -5,8 +5,6 @@ set -euo pipefail
 # 由 workflow 按 target 注入, 本地手动构建默认 ImmortalWrt 路径
 WORK_DIR="${WORK_DIR:-/home/build/immortalwrt}"
 STORE_REPO="https://github.com/szwjp/luci.git"
-# 供应链加固: 锁定到指定 commit, 升级第三方包时同步更新 (git ls-remote https://github.com/szwjp/luci.git master)
-STORE_REPO_REF="${STORE_REPO_REF:-4e389ea063427433f93d55627eb44b9cd230a009}"
 
 CUSTOM_PACKAGES=""
 source "${WORK_DIR}/shell/custom-packages.sh"
@@ -36,8 +34,6 @@ else
   # 全量 checkout (不再用 luci-dirs.txt sparse 白名单)
   rm -rf /tmp/store-repo
   if git clone --depth=1 "$STORE_REPO" /tmp/store-repo; then
-    git -C /tmp/store-repo fetch --depth=1 origin "$STORE_REPO_REF"
-    git -C /tmp/store-repo checkout --detach "$STORE_REPO_REF"
 
     mkdir -p "${WORK_DIR}/extra-packages"
     # szwjp/luci 仓库结构: 每个一级子目录存放一个软件的 .apk
