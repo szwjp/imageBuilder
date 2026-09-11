@@ -16,6 +16,10 @@ else
     echo "warning: cannot find wan zone, skip firewall input ACCEPT" >>$LOGFILE
 fi
 
+# 强制 LuCI 默认语言为简体中文 (与 openwrt 分支保持一致; 不依赖发行版默认设置)
+uci set luci.main.lang='zh_cn'
+uci commit luci
+
 # 设置主机名映射，解决安卓原生 TV 无法联网的问题
 uci add dhcp domain
 uci set "dhcp.@domain[-1].name=time.android.com"
