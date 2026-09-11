@@ -106,9 +106,17 @@ elif [ "$count" -gt 1 ]; then
     IP_VALUE_FILE="/etc/config/custom_router_ip.txt"
     if [ -f "$IP_VALUE_FILE" ]; then
         CUSTOM_IP=$(cat "$IP_VALUE_FILE")
-        # 用户在UI上设置的路由器后台管理地址
-        uci set network.lan.ipaddr=$CUSTOM_IP
-        echo "custom router ip is $CUSTOM_IP" >> $LOGFILE
+        # 兜底校验: 非合法 IPv4 时退回默认地址, 避免把坏值写进 network 导致失联
+        if echo "$CUSTOM_IP" | grep -Eq '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$'; then
+            # 用户在UI上设置的路由器后台管理地址
+            uci set network.lan.ipaddr=$CUSTOM_IP
+            echo "custom router ip is $CUSTOM_IP" >> $LOGFILE
+        else
+            uci set network.lan.ipaddr='192.168.1.1'
+            echo "warning: invalid custom router ip '$CUSTOM_IP', fallback to 192.168.1.1" >> $LOGFILE
+        fi
+        # 读完即删: 该文件仅用于首启注入地址, 留在 /etc/config 下无意义
+        rm -f "$IP_VALUE_FILE"
     else
         uci set network.lan.ipaddr='192.168.1.1'
         echo "default router ip is 192.168.1.1" >> $LOGFILE

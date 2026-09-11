@@ -93,6 +93,10 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES nginx-full nginx-mod-luci"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr"
 
 # ============ 第三方 (szwjp/luci 仓库) ============
+# 说明: 这里的包名会连同下面官方源清单一起传给 shell/prepare-packages.sh;
+#       同名包在第三方仓库与官方源都存在时, 按设计优先使用第三方这一份。
+#       同一包名在第三方仓库里有多份时默认保留最高版本; 若出现"版本号相同但内容不同"
+#       需要人工指定取舍, 可设置目录优先级, 例如: EXTERNAL_APK_PRIORITY="passwall pwcore"
 # 文件管理
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES bash quickfile luci-app-quickfile luci-i18n-quickfile-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-run"
