@@ -5,13 +5,41 @@ set -euo pipefail
 # 由 workflow 按 target 注入, 本地手动构建默认 ImmortalWrt 路径
 WORK_DIR="${WORK_DIR:-/home/build/immortalwrt}"
 STORE_REPO="https://github.com/szwjp/luci.git"
+# 第三方包策略: 不锁定 commit, 每次构建取仓库最新 (与 master 分支保持一致)
+# 如需可复现构建, 可临时设置 STORE_REPO_REF=<sha>
 
 CUSTOM_PACKAGES=""
 source "${WORK_DIR}/shell/custom-packages.sh"
 
 echo "第三方软件包: $CUSTOM_PACKAGES"
-echo "编译固件大小为: $ROOTFS_PARTSIZE MB"
-echo "Include Docker: $INCLUDE_DOCKER"
+echo "编译固件大小为: ${ROOTFS_PARTSIZE:-未设置} MB"
+echo "Include Docker: ${INCLUDE_DOCKER:-未设置}"
+
+# 入口兜底校验: workflow 已校验, 但本地/手工调用时这里要给出明确报错而不是让 make 或容器报错
+missing=""
+for v in ROOTFS_PARTSIZE INCLUDE_DOCKER ENABLE_PPPOE; do
+  [ -z "${!v:-}" ] && missing="$missing $v"
+done
+if [ -n "$missing" ]; then
+  echo "❌ 缺少必需的环境变量:$missing (由 workflow 的 --env-file 注入)" >&2
+  exit 1
+fi
+# PPPoE 凭据允许为空, 但变量本身必须已定义 (enable_pppoe=yes 时 workflow 已校验非空)
+: "${PPPOE_ACCOUNT:=}"
+: "${PPPOE_PASSWORD:=}"
+
+if ! printf '%s' "${ROOTFS_PARTSIZE:-}" | grep -Eq '^[0-9]+$'; then
+  echo "❌ ROOTFS_PARTSIZE 必须是正整数 (MB), 当前: '${ROOTFS_PARTSIZE:-}'" >&2
+  exit 1
+fi
+if [ "$ROOTFS_PARTSIZE" -lt 128 ] || [ "$ROOTFS_PARTSIZE" -gt 8192 ]; then
+  echo "❌ ROOTFS_PARTSIZE 超出合理范围 (128-8192 MB), 当前: $ROOTFS_PARTSIZE" >&2
+  exit 1
+fi
+if [ "${INCLUDE_DOCKER:-}" != "yes" ] && [ "${INCLUDE_DOCKER:-}" != "no" ]; then
+  echo "❌ INCLUDE_DOCKER 只能是 yes 或 no, 当前: '${INCLUDE_DOCKER:-}'" >&2
+  exit 1
+fi
 
 echo "Create pppoe-settings"
 mkdir -p "${WORK_DIR}/files/etc/config"
@@ -34,14 +62,22 @@ else
   # 全量 checkout (不再用 luci-dirs.txt sparse 白名单)
   rm -rf /tmp/store-repo
   if git clone --depth=1 "$STORE_REPO" /tmp/store-repo; then
-    
+    # 可选: 设置 STORE_REPO_REF=<sha> 可获得可复现的第三方包集合; 默认不锁定, 始终取最新
+    if [ -n "${STORE_REPO_REF:-}" ]; then
+      echo "锁定第三方仓库到: $STORE_REPO_REF"
+      git -C /tmp/store-repo fetch --depth=1 origin "$STORE_REPO_REF"
+      git -C /tmp/store-repo checkout --detach "$STORE_REPO_REF"
+    fi
+
+    # 先清空, 避免上一次构建遗留的已删除包继续被收集 (本地/自托管重复构建时才有影响)
+    rm -rf "${WORK_DIR}/extra-packages"
     mkdir -p "${WORK_DIR}/extra-packages"
     # szwjp/luci 仓库结构: 每个一级子目录存放一个软件的 .apk
     cp -r /tmp/store-repo/* "${WORK_DIR}/extra-packages/"
     echo "✅ 第三方包已复制至 extra-packages:"
     ls -lh "${WORK_DIR}/extra-packages/" | head -30
 
-    (cd "${WORK_DIR}" && sh shell/prepare-packages.sh)
+    (cd "${WORK_DIR}" && sh shell/prepare-packages.sh "$CUSTOM_PACKAGES")
     ls -lah "${WORK_DIR}/packages/"
   else
     # 第三方包缺失时构建仍会成功但固件缺包, 属静默失败, 直接终止
