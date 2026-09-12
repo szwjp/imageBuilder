@@ -32,6 +32,21 @@ ImmortalWrt-ImageBuilder/
 > 因此 `target=openwrt` 的构建必须从 master 页面触发（工作流会自行 `git checkout openwrt`）；
 > 直接切到 openwrt 分支是找不到工作流的。
 
+## 构建方式：直接使用上游官方 ImageBuilder
+
+构建不再依赖 Docker 镜像，改为在 runner 上下载上游发布的 ImageBuilder 压缩包直接使用：
+
+| target | 下载地址 |
+| --- | --- |
+| `immortalwrt` | `https://downloads.immortalwrt.org/releases/<版本>/targets/x86/64/immortalwrt-imagebuilder-<版本>-x86-64.Linux-x86_64.tar.zst` |
+| `openwrt` | `https://downloads.openwrt.org/releases/<版本>/targets/x86/64/openwrt-imagebuilder-<版本>-x86-64.Linux-x86_64.tar.zst` |
+
+流程：校验 URL 存在 → 下载 → 用官方 `sha256sums` 校验 → 解包到 workspace → 用本仓库的平台配置覆盖 `.config` → 执行 `x86-64/build.sh`。
+
+> 这样做的原因：上游为每个已发布版本都提供 ImageBuilder 压缩包，而 `immortalwrt/imagebuilder`
+> 的 Docker 镜像自 2026-07 起就没有继续跟进新版本（停在 25.12.1），导致新发布的固件版本无法构建。
+> 压缩包与校验和都在官方下载站，可追溯；`docker` 相关步骤已全部移除。
+
 ## 第三方软件包如何进入固件
 
 1. 在 `shell/custom-packages.sh` 中把包名加入 `CUSTOM_PACKAGES`（默认启用项见 `PACKAGES.md`）。

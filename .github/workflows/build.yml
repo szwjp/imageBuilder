@@ -12,9 +12,9 @@ on:
           - immortalwrt
           - openwrt
       version:
-        description: "固件版本号 (immortalwrt版本号仅25.12.0-1：openwrt版本号25.12.0-5)"
+        description: "固件版本号 (以 25.12.x 为例, 可选项以官方已发布的 ImageBuilder 为准, 构建前会校验)"
         required: true
-        default: "25.12.1"
+        default: "25.12.2"
         type: choice
         options:
           - 25.12.0
@@ -135,16 +135,16 @@ jobs:
           case "$TARGET" in
             immortalwrt)
               BRANCH=master
-              WORK_DIR=/home/build/immortalwrt
-              IMAGE="immortalwrt/imagebuilder:x86-64-openwrt-${VERSION}"
+              IB_BASE=https://downloads.immortalwrt.org/releases
+              IB_NAME="immortalwrt-imagebuilder-${VERSION}-x86-64.Linux-x86_64.tar.zst"
               CONFIG=x86-64/imm.config
               RELEASE_TAG=Autobuild-x86-64
               ISO_TAG=Custom-Installer-x86_64-ISO
               ;;
             openwrt)
               BRANCH=openwrt
-              WORK_DIR=/builder
-              IMAGE="openwrt/imagebuilder:x86-64-${VERSION}"
+              IB_BASE=https://downloads.openwrt.org/releases
+              IB_NAME="openwrt-imagebuilder-${VERSION}-x86-64.Linux-x86_64.tar.zst"
               CONFIG=x86-64/openwrt.config
               RELEASE_TAG=Autobuild-OpenWrt-x86-64
               ISO_TAG=OpenWrt-Installer-x86_64-ISO
@@ -155,18 +155,24 @@ jobs:
               ;;
           esac
 
-          # 校验目标 imagebuilder tag 实际存在, 避免版本输入与已发布镜像不一致时到 docker run 才失败
-          if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
-            echo "Error: 镜像 tag 不存在: $IMAGE"
+          # 直接以 workspace 为工作目录: tarball 没有顶层 bin/, 用 --strip-components=1
+          # 解到根目录后, 固件输出落在 ${GITHUB_WORKSPACE}/bin/targets/x86/64/,
+          # 与后续上传/打包 ISO 步骤的路径保持一致
+          WORK_DIR="${{ github.workspace }}"
+          IB_URL="$IB_BASE/$VERSION/targets/x86/64/$IB_NAME"
+
+          # 上游只对已发布版本提供 ImageBuilder tarball; 不存在时给出明确提示
+          # (此前用 docker hub 的点版本 tag 判断, 但该镜像已停止跟进新版发布)
+          if ! curl -fsIL --retry 3 --retry-delay 2 -o /dev/null "$IB_URL"; then
+            echo "Error: 找不到 ImageBuilder: $IB_URL"
             echo "请确认版本号 '$VERSION' 对 target=$TARGET 是否已发布"
             exit 1
           fi
 
-          echo "Target: $TARGET | Branch: $BRANCH | Version: $VERSION | Image: $IMAGE"
-          echo "Building for profile: $PROFILE (work_dir=$WORK_DIR)"
+          # 先切到目标分支, 后续从该分支读取平台配置与定制脚本
           git checkout "$BRANCH"
 
-          # 校验目标分支源码文件存在, 避免 docker bind-mount 对缺失路径静默创建空目录
+          # 校验目标分支源码文件存在
           for src in "$CONFIG" x86-64/build.sh shell/custom-packages.sh shell/prepare-packages.sh files/etc/uci-defaults/99-custom.sh; do
             if [ ! -f "$src" ]; then
               echo "Error: $src 在 $BRANCH 分支不存在, 目标分支与 workflow 不匹配"
@@ -174,28 +180,65 @@ jobs:
             fi
           done
 
-          # 敏感信息(PPPoE 密码)走 env-file, 避免出现在 docker run 进程列表/日志
-          # trap 兜底: docker run 失败时也确保删除明文 env 文件
-          trap 'rm -f .build.env' EXIT
-          printf 'ROOTFS_PARTSIZE=%s\n' "$PROFILE" > .build.env
-          printf 'BUILD_VERSION=%s\n' "$VERSION" >> .build.env
-          printf 'INCLUDE_DOCKER=%s\n' "$INCLUDE_DOCKER" >> .build.env
-          printf 'ENABLE_PPPOE=%s\n' "$ENABLE_PPPOE" >> .build.env
-          printf 'PPPOE_ACCOUNT=%s\n' "$PPPOE_ACCOUNT" >> .build.env
-          printf 'PPPOE_PASSWORD=%s\n' "$PPPOE_PASSWORD" >> .build.env
+          echo "Target: $TARGET | Branch: $BRANCH | Version: $VERSION"
+          echo "ImageBuilder: $IB_URL"
+          echo "Building for profile: $PROFILE (work_dir=$WORK_DIR)"
 
-          docker run --rm -i \
-            --user root \
-            -v "${{ github.workspace }}/bin:$WORK_DIR/bin" \
-            -v "${{ github.workspace }}/files:$WORK_DIR/files" \
-            -v "${{ github.workspace }}/custom:$WORK_DIR/files/etc/config" \
-            -v "${{ github.workspace }}/$CONFIG:$WORK_DIR/.config" \
-            -v "${{ github.workspace }}/shell:$WORK_DIR/shell" \
-            -v "${{ github.workspace }}/x86-64/build.sh:$WORK_DIR/build.sh" \
-            --env-file .build.env \
-            -e WORK_DIR=$WORK_DIR \
-            "$IMAGE" /bin/bash "$WORK_DIR/build.sh"
-          rm -f .build.env
+          curl -fL --retry 3 --retry-delay 2 -o "$IB_NAME" "$IB_URL"
+
+          # 供应链校验: 优先用官方 sha256sums, 缺失时退化为记录实际摘要
+          if curl -fsSL -o sha256sums "$IB_BASE/$VERSION/targets/x86/64/sha256sums"; then
+            expected=$(awk -v f="$IB_NAME" '$2 == f || $2 == "*" f {print $1; exit}' sha256sums)
+            if [ -z "$expected" ]; then
+              echo "⚠️ sha256sums 中未列出 $IB_NAME, 跳过校验 (实际: $(sha256sum "$IB_NAME" | cut -d' ' -f1))"
+            else
+              actual=$(sha256sum "$IB_NAME" | cut -d' ' -f1)
+              if [ "$actual" != "$expected" ]; then
+                echo "Error: ImageBuilder 校验和不匹配"
+                echo "  expected: $expected"
+                echo "  actual  : $actual"
+                exit 1
+              fi
+              echo "✅ ImageBuilder sha256 校验通过"
+            fi
+          else
+            echo "⚠️ 未找到 sha256sums, 跳过校验 (tarball 实际 sha256: $(sha256sum "$IB_NAME" | cut -d' ' -f1))"
+          fi
+
+          # 解包到 workspace 根目录: tarball 没有顶层 bin/, 解出的内容与仓库文件互补,
+          # 不会覆盖 shell/ 与 files/ (那两个目录只在仓库里)
+          tar --zstd -xf "$IB_NAME" --strip-components=1
+          if [ ! -f Makefile ] || [ ! -d include ]; then
+            echo "Error: ImageBuilder 解包失败, 未找到 Makefile/include"
+            ls -la
+            exit 1
+          fi
+          rm -f "$IB_NAME" sha256sums
+
+          mkdir -p bin
+          cp x86-64/build.sh build.sh
+          # 用仓库内的平台配置覆盖 tarball 自带默认 .config (过滤掉会触发重编译的开发选项)
+          grep -vE '^CONFIG_(DEVEL|AUTOREBUILD|AUTOREMOVE|BUILD_LOG|CCACHE)' "$CONFIG" > .config
+
+          # 敏感信息(PPPoE 密码)走 env 文件, 避免出现在命令行/日志
+          # trap 兜底: 构建失败时也确保删除明文文件
+          trap 'rm -f "$WORK_DIR/.build.env"' EXIT
+          {
+            printf 'ROOTFS_PARTSIZE=%s\n' "$PROFILE"
+            printf 'BUILD_VERSION=%s\n' "$VERSION"
+            printf 'INCLUDE_DOCKER=%s\n' "$INCLUDE_DOCKER"
+            printf 'ENABLE_PPPOE=%s\n' "$ENABLE_PPPOE"
+            printf 'PPPOE_ACCOUNT=%s\n' "$PPPOE_ACCOUNT"
+            printf 'PPPOE_PASSWORD=%s\n' "$PPPOE_PASSWORD"
+          } > "$WORK_DIR/.build.env"
+
+          set -a
+          # shellcheck disable=SC1090
+          . "$WORK_DIR/.build.env"
+          set +a
+
+          bash "$WORK_DIR/build.sh"
+          rm -f "$WORK_DIR/.build.env"
 
           # 传递 tag 给后续步骤
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
