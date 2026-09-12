@@ -224,6 +224,8 @@ jobs:
           # trap 兜底: 构建失败时也确保删除明文文件
           trap 'rm -f "$WORK_DIR/.build.env"' EXIT
           {
+            # build.sh 依赖 WORK_DIR 定位 shell/ 与 .config, 必须显式传入
+            printf 'WORK_DIR=%s\n' "$WORK_DIR"
             printf 'ROOTFS_PARTSIZE=%s\n' "$PROFILE"
             printf 'BUILD_VERSION=%s\n' "$VERSION"
             printf 'INCLUDE_DOCKER=%s\n' "$INCLUDE_DOCKER"
