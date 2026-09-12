@@ -47,6 +47,16 @@ ImmortalWrt-ImageBuilder/
 > 的 Docker 镜像自 2026-07 起就没有继续跟进新版本（停在 25.12.1），导致新发布的固件版本无法构建。
 > 压缩包与校验和都在官方下载站，可追溯；`docker` 相关步骤已全部移除。
 
+### 版本可用性
+
+| target | 已验证可用 | 说明 |
+| --- | --- | --- |
+| `immortalwrt` | 25.12.0 / 25.12.1 / 25.12.2 | 官方为每个已发布版本都提供 ImageBuilder |
+| `openwrt` | 25.12.3 及以上 | **25.12.0–25.12.2 无法构建**：官方 kmods 源缺少 `kmod-ovpn-backports`，而 openwrt 分支启用的 `openvpn-openssl 2.7.6` 依赖它（该 kmod 从 25.12.3 起才随源发布）。如需旧版本，可先在 `shell/custom-packages.sh` 中注释掉 `luci-i18n-openvpn-server-zh-cn` |
+
+版本号取自官方下载站，构建前会校验 ImageBuilder 是否存在；若报 `unable to select packages`，
+说明该版本的上游软件源缺包，换一个版本即可。
+
 ## 第三方软件包如何进入固件
 
 1. 在 `shell/custom-packages.sh` 中把包名加入 `CUSTOM_PACKAGES`（默认启用项见 `PACKAGES.md`）。
